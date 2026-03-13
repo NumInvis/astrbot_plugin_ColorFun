@@ -1,0 +1,8 @@
+{
+  "name": "astrbot_plugin_VisualFun",
+  "display_name": "VisualFun",
+  "desc": "颜色图片生成与色图获取插件",
+  "author": "NumInvis",
+  "version": "1.0.0",
+  "repo": "https://github.com/NumInvis/astrbot_plugin_VisualFun"
+}
