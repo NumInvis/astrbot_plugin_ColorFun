@@ -1,9 +1,10 @@
 import io
 import re
 import random
+import asyncio
 from typing import Optional, List, Tuple
 from PIL import Image as PILImage
-from PIL import ImageDraw, ImageFont
+from PIL import ImageDraw
 
 from astrbot.api import logger
 from astrbot.api.event import AstrMessageEvent, filter
@@ -59,6 +60,13 @@ class ColorFunPlugin(Star):
         super().__init__(context)
         logger.info("ColorFun 插件已初始化")
 
+    def _generate_random_color(self) -> Tuple[str, Tuple[int, int, int]]:
+        r = random.randint(0, 255)
+        g = random.randint(0, 255)
+        b = random.randint(0, 255)
+        hex_color = f"#{r:02X}{g:02X}{b:02X}"
+        return (hex_color, (r, g, b))
+
     def _parse_color(self, color_input: str) -> Optional[Tuple[str, str]]:
         color_input = color_input.strip().lower()
 
@@ -100,13 +108,14 @@ class ColorFunPlugin(Star):
         b = int(hex_color[4:6], 16)
         return (r, g, b)
 
-    def _create_color_image(self, hex_color: str):
+    def _create_color_image_sync(self, hex_color: str):
         r, g, b = self._hex_to_rgb(hex_color)
         img = PILImage.new('RGB', (800, 800), (r, g, b))
         return img
 
-    def _create_gradient_image(self, colors: List[Tuple[str, str]]):
+    def _create_gradient_image_sync(self, colors: List[Tuple[str, str]]):
         img = PILImage.new('RGB', (800, 800))
+        draw = ImageDraw.Draw(img)
         rgb_colors = []
         for hex_color, _ in colors:
             rgb_colors.append(self._hex_to_rgb(hex_color))
@@ -122,27 +131,37 @@ class ColorFunPlugin(Star):
             g = int(rgb_colors[index1][1] * (1 - local_ratio) + rgb_colors[index2][1] * local_ratio)
             b = int(rgb_colors[index1][2] * (1 - local_ratio) + rgb_colors[index2][2] * local_ratio)
 
-            draw = ImageDraw.Draw(img)
             draw.line([(0, y), (800, y)], fill=(r, g, b))
 
         return img
 
-    def _create_palette_image(self, colors: List[Tuple[str, str]]):
+    def _create_palette_image_sync(self, colors: List[Tuple[str, str]]):
         img = PILImage.new('RGB', (800, 400), (255, 255, 255))
         draw = ImageDraw.Draw(img)
 
-        block_width = 800 // len(colors)
-
-        for i, (hex_color, _) in enumerate(colors):
+        num_colors = len(colors)
+        for i in range(num_colors):
+            hex_color, _ = colors[i]
             r, g, b = self._hex_to_rgb(hex_color)
-            x1 = i * block_width
-            x2 = (i + 1) * block_width
+            x1 = (i * 800) // num_colors
+            x2 = ((i + 1) * 800) // num_colors
             draw.rectangle([x1, 0, x2, 400], fill=(r, g, b))
 
         return img
 
+    async def _create_color_image(self, hex_color: str):
+        return await asyncio.to_thread(self._create_color_image_sync, hex_color)
+
+    async def _create_gradient_image(self, colors: List[Tuple[str, str]]):
+        return await asyncio.to_thread(self._create_gradient_image_sync, colors)
+
+    async def _create_palette_image(self, colors: List[Tuple[str, str]]):
+        return await asyncio.to_thread(self._create_palette_image_sync, colors)
+
     @filter.command("颜色")
     async def cmd_color(self, event: AstrMessageEvent, color_input: str = ""):
+        color_input = color_input.strip()
+
         if not color_input:
             yield event.plain_result(
                 "🎨 颜色生成器\n"
@@ -165,7 +184,7 @@ class ColorFunPlugin(Star):
             theme_colors = self.COLOR_THEMES[color_input]
             parsed_colors = [(color, color) for color in theme_colors]
             try:
-                img = self._create_palette_image(parsed_colors)
+                img = await self._create_palette_image(parsed_colors)
                 buffer = io.BytesIO()
                 img.save(buffer, format='PNG')
                 buffer.seek(0)
@@ -193,7 +212,7 @@ class ColorFunPlugin(Star):
                     return
             
             try:
-                img = self._create_gradient_image(parsed_colors)
+                img = await self._create_gradient_image(parsed_colors)
                 buffer = io.BytesIO()
                 img.save(buffer, format='PNG')
                 buffer.seek(0)
@@ -207,7 +226,7 @@ class ColorFunPlugin(Star):
         if color_result:
             hex_color, display_name = color_result
             try:
-                img = self._create_color_image(hex_color)
+                img = await self._create_color_image(hex_color)
                 buffer = io.BytesIO()
                 img.save(buffer, format='PNG')
                 buffer.seek(0)
@@ -230,45 +249,31 @@ class ColorFunPlugin(Star):
                 num_colors = random.randint(2, 5)
                 random_colors = []
                 for _ in range(num_colors):
-                    r = random.randint(0, 255)
-                    g = random.randint(0, 255)
-                    b = random.randint(0, 255)
-                    hex_color = f"#{r:02X}{g:02X}{b:02X}"
+                    hex_color, _ = self._generate_random_color()
                     random_colors.append((hex_color, hex_color))
                 
-                img = self._create_gradient_image(random_colors)
+                img = await self._create_gradient_image(random_colors)
                 description = f"🌈 随机渐变色 ({num_colors}色)\n颜色: {' → '.join([c[0] for c in random_colors])}"
             
             elif mode == "palette":
                 num_colors = random.randint(4, 8)
                 random_colors = []
                 for _ in range(num_colors):
-                    r = random.randint(0, 255)
-                    g = random.randint(0, 255)
-                    b = random.randint(0, 255)
-                    hex_color = f"#{r:02X}{g:02X}{b:02X}"
+                    hex_color, _ = self._generate_random_color()
                     random_colors.append((hex_color, hex_color))
                 
-                img = self._create_palette_image(random_colors)
+                img = await self._create_palette_image(random_colors)
                 description = f"🎨 随机调色板 ({num_colors}色)\n颜色: {' → '.join([c[0] for c in random_colors])}"
             
             elif mode == "special":
-                r = random.randint(0, 255)
-                g = random.randint(0, 255)
-                b = random.randint(0, 255)
-                hex_color = f"#{r:02X}{g:02X}{b:02X}"
-                
-                img = self._create_color_image(hex_color)
-                description = f"🎭 随机色图\n颜色: {hex_color}\nRGB: ({r}, {g}, {b})"
+                hex_color, rgb = self._generate_random_color()
+                img = await self._create_color_image(hex_color)
+                description = f"🎭 随机色图\n颜色: {hex_color}\nRGB: {rgb}"
             
             else:
-                r = random.randint(0, 255)
-                g = random.randint(0, 255)
-                b = random.randint(0, 255)
-                hex_color = f"#{r:02X}{g:02X}{b:02X}"
-                
-                img = self._create_color_image(hex_color)
-                description = f"🎨 随机纯色\n颜色: {hex_color}\nRGB: ({r}, {g}, {b})"
+                hex_color, rgb = self._generate_random_color()
+                img = await self._create_color_image(hex_color)
+                description = f"🎨 随机纯色\n颜色: {hex_color}\nRGB: {rgb}"
 
             buffer = io.BytesIO()
             img.save(buffer, format='PNG')
