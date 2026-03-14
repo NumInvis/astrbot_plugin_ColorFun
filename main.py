@@ -609,6 +609,80 @@ class ColorFunPlugin(Star):
         """Generate color image (English)"""
         await self.cmd_color(event, color_input, style)
 
+    @filter.command("色图")
+    async def cmd_random_color_image(self, event: AstrMessageEvent):
+        """随机生成一张色图，包含完全随机的渐变和各种功能"""
+        yield event.plain_result("🎨 正在生成随机色图，请稍候...")
+
+        try:
+            # 随机决定生成模式：渐变、调色板或特殊效果
+            mode = random.choice(["gradient", "palette", "special", "single"])
+            
+            if mode == "gradient":
+                # 随机渐变模式
+                num_colors = random.randint(2, 5)
+                random_colors = []
+                for _ in range(num_colors):
+                    r = random.randint(0, 255)
+                    g = random.randint(0, 255)
+                    b = random.randint(0, 255)
+                    hex_color = self._rgb_to_hex(r, g, b)
+                    random_colors.append((hex_color, hex_color))
+                
+                direction = random.choice(["vertical", "horizontal", "diagonal"])
+                img = self._create_gradient_image(random_colors, direction=direction)
+                
+                description = f"🌈 随机渐变色 ({num_colors}色, {direction})\n颜色: {' → '.join([c[0] for c in random_colors])}"
+            
+            elif mode == "palette":
+                # 随机调色板模式
+                num_colors = random.randint(4, 8)
+                random_colors = []
+                for _ in range(num_colors):
+                    r = random.randint(0, 255)
+                    g = random.randint(0, 255)
+                    b = random.randint(0, 255)
+                    hex_color = self._rgb_to_hex(r, g, b)
+                    random_colors.append((hex_color, hex_color))
+                
+                img = self._create_palette_image(random_colors)
+                description = f"🎨 随机调色板 ({num_colors}色)\n颜色: {' → '.join([c[0] for c in random_colors])}"
+            
+            elif mode == "special":
+                # 特殊效果模式
+                r = random.randint(0, 255)
+                g = random.randint(0, 255)
+                b = random.randint(0, 255)
+                hex_color = self._rgb_to_hex(r, g, b)
+                style = random.choice(["gradient", "pattern", "blur", "noise"])
+                
+                img = self._create_color_image(hex_color, style=style)
+                description = f"🎭 特殊效果色图\n颜色: {hex_color}\n样式: {style}\nRGB: ({r}, {g}, {b})"
+            
+            else:  # single
+                # 纯色模式但带随机元素
+                r = random.randint(0, 255)
+                g = random.randint(0, 255)
+                b = random.randint(0, 255)
+                hex_color = self._rgb_to_hex(r, g, b)
+                h, s, l = self._rgb_to_hsl(r, g, b)
+                
+                img = self._create_color_image(hex_color, style="solid")
+                description = f"🎨 随机纯色\n颜色: {hex_color}\nRGB: ({r}, {g}, {b})\nHSL: ({h:.0f}, {s:.0f}%, {l:.0f}%)"
+
+            buffer = io.BytesIO()
+            img.save(buffer, format='PNG')
+            buffer.seek(0)
+
+            chain = MessageChain()
+            chain.append(Comp.Plain(f"🎨 随机色图生成成功！\n{description}\n"))
+            chain.append(Comp.Image.fromBytes(buffer.getvalue()))
+            yield event.chain_result(chain)
+            
+        except Exception as e:
+            logger.error(f"生成随机色图失败: {e}")
+            yield event.plain_result("❌ 生成随机色图失败，请稍后再试")
+
     @filter.command("colorfun帮助")
     async def cmd_help(self, event: AstrMessageEvent):
         """显示帮助信息"""
@@ -634,6 +708,9 @@ class ColorFunPlugin(Star):
 /调色板 <颜色1>;<颜色2>;<颜色3>... - 生成颜色调色板
 /调色板 <主题> - 生成主题调色板
 
+🎨 随机色图命令:
+/色图 - 随机生成一张色图，包含完全随机的渐变和各种功能
+
 📖 示例:
 /颜色 红
 /颜色 #FF0000 gradient
@@ -642,6 +719,7 @@ class ColorFunPlugin(Star):
 /颜色 彩虹
 /渐变 红;绿;蓝 horizontal
 /调色板 冷色调
+/色图
 
 💡 提示:
 • 颜色支持中文和英文名称
