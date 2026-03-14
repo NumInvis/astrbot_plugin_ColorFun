@@ -1,6 +1,6 @@
 {
   "name": "astrbot_plugin_ColorFun",
-  "display_name": "ColorFun",
+  "display_name": "随机色图",
   "desc": "一个强大的色图生成插件",
   "author": "NumInvis",
   "version": "1.0.0",
