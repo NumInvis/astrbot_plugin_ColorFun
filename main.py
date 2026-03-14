@@ -102,35 +102,17 @@ class ColorFunPlugin(Star):
 
     def _create_color_image(self, hex_color: str):
         r, g, b = self._hex_to_rgb(hex_color)
-        img = PILImage.new('RGB', (400, 400), (r, g, b))
-        draw = ImageDraw.Draw(img)
-
-        text = hex_color
-        try:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 40)
-        except:
-            font = ImageFont.load_default()
-
-        bbox = draw.textbbox((0, 0), text, font=font)
-        text_width = bbox[2] - bbox[0]
-        text_height = bbox[3] - bbox[1]
-        x = (400 - text_width) // 2
-        y = (400 - text_height) // 2
-
-        brightness = (r * 299 + g * 587 + b * 114) / 1000
-        text_color = (0, 0, 0) if brightness > 128 else (255, 255, 255)
-
-        draw.text((x, y), text, fill=text_color, font=font)
+        img = PILImage.new('RGB', (800, 800), (r, g, b))
         return img
 
     def _create_gradient_image(self, colors: List[Tuple[str, str]]):
-        img = PILImage.new('RGB', (400, 400))
+        img = PILImage.new('RGB', (800, 800))
         rgb_colors = []
         for hex_color, _ in colors:
             rgb_colors.append(self._hex_to_rgb(hex_color))
 
-        for y in range(400):
-            ratio = y / 399
+        for y in range(800):
+            ratio = y / 799
             color_index = ratio * (len(rgb_colors) - 1)
             index1 = int(color_index)
             index2 = min(index1 + 1, len(rgb_colors) - 1)
@@ -141,51 +123,21 @@ class ColorFunPlugin(Star):
             b = int(rgb_colors[index1][2] * (1 - local_ratio) + rgb_colors[index2][2] * local_ratio)
 
             draw = ImageDraw.Draw(img)
-            draw.line([(0, y), (400, y)], fill=(r, g, b))
+            draw.line([(0, y), (800, y)], fill=(r, g, b))
 
-        text = " → ".join([c[1] for c in colors])
-        try:
-            font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 24)
-        except:
-            font = ImageFont.load_default()
-
-        draw = ImageDraw.Draw(img)
-        bbox = draw.textbbox((0, 0), text, font=font)
-        text_width = bbox[2] - bbox[0]
-        text_height = bbox[3] - bbox[1]
-        x = (400 - text_width) // 2
-        y = 400 - text_height - 20
-
-        overlay = PILImage.new('RGBA', (text_width + 20, text_height + 10), (0, 0, 0, 128))
-        img = img.convert('RGBA')
-        img.paste(overlay, (x - 10, y - 5), overlay)
-
-        draw = ImageDraw.Draw(img)
-        draw.text((x, y), text, fill=(255, 255, 255), font=font)
-        return img.convert('RGB')
+        return img
 
     def _create_palette_image(self, colors: List[Tuple[str, str]]):
-        img = PILImage.new('RGB', (400, 200), (255, 255, 255))
+        img = PILImage.new('RGB', (800, 400), (255, 255, 255))
         draw = ImageDraw.Draw(img)
 
-        block_width = 400 // len(colors)
+        block_width = 800 // len(colors)
 
-        for i, (hex_color, display_name) in enumerate(colors):
+        for i, (hex_color, _) in enumerate(colors):
             r, g, b = self._hex_to_rgb(hex_color)
             x1 = i * block_width
             x2 = (i + 1) * block_width
-            draw.rectangle([x1, 0, x2, 160], fill=(r, g, b))
-
-            try:
-                font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 12)
-            except:
-                font = ImageFont.load_default()
-
-            brightness = (r * 299 + g * 587 + b * 114) / 1000
-            text_color = (0, 0, 0) if brightness > 128 else (255, 255, 255)
-
-            draw.text((x1 + 5, 165), display_name[:10], fill=text_color, font=font)
-            draw.text((x1 + 5, 180), hex_color, fill=text_color, font=font)
+            draw.rectangle([x1, 0, x2, 400], fill=(r, g, b))
 
         return img
 
