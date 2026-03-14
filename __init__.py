@@ -1,8 +1,8 @@
 """
-VisualFun - 视觉娱乐插件
+ColorFun - 颜色生成插件
 AstrBot 插件入口
 """
 
-from .main import VisualFunPlugin
+from .main import ColorFunPlugin
 
-__all__ = ["VisualFunPlugin"]
+__all__ = ["ColorFunPlugin"]
